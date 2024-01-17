@@ -16,7 +16,14 @@ UKF::UKF() {
   use_radar_ = true;
 
   // initial state vector
-  x_ = VectorXd(5);
+  /* Vector Elements: 
+    p_x 
+    p_y
+    v
+    yaw (psi)
+    yawd (psi_dot)
+  */
+  x_ = VectorXd(5); 
 
   // initial covariance matrix
   P_ = MatrixXd(5, 5);
@@ -103,13 +110,33 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     // State
     if (meas_package.sensor_type_ == MeasurementPackage::RADAR) 
     {
-      auto rho = static_cast<float>(meas_package.raw_measurements_[0]);
-      auto phi = static_cast<float>(meas_package.raw_measurements_[1]);
-      x_ << rho * cos(phi), rho * sin(phi), 0, 0, 0;
+      double radarmeas_radial_dist  = meas_package.raw_measurements_[0];
+      double radarmeas_phi          = meas_package.raw_measurements_[1];
+      double radarmeas_radial_v     = meas_package.raw_measurements_[2];
+
+      double p_x = radarmeas_radial_dist * cos(radarmeas_phi);
+      double p_y = radarmeas_radial_dist * sin(radarmeas_phi);
+      double v_x = radarmeas_radial_v * cos(radarmeas_phi);
+      double v_y = radarmeas_radial_v * sin(radarmeas_phi);
+
+      double v_vehicle = sqrt(v_x * v_x + v_y * v_y);
+
+      
+      x_ << 
+          p_x,                // p_x
+          p_y,                // p_y
+          v_vehicle,          // v
+          0,                 // vehicle yaw (psi)
+          0;                 // vehicle yaw accelleration (psi_dot)
     }
     else if (meas_package.sensor_type_ == MeasurementPackage::LASER) 
     {      
-      x_ << meas_package.raw_measurements_[0], meas_package.raw_measurements_[1], 0, 0, 0;
+      x_ << 
+          meas_package.raw_measurements_[0], 
+          meas_package.raw_measurements_[1], 
+          0, 
+          0, 
+          0;
     }
 
     // Covariance
@@ -121,7 +148,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     
     P_ << 1, 0, 0, 0, 0,
           0, 1, 0, 0, 0,
-          0, 0, 1, 0, 0,
+          0, 0, 200, 0, 0,
           0, 0, 0, 1, 0,
           0, 0, 0, 0, 1;
     
