@@ -77,6 +77,7 @@ UKF::UKF() {
 
   // predicted sigma points matrix
   Xsig_pred_ = MatrixXd(n_x_, 2 * n_aug_ + 1);
+  Xsig_pred_.fill(0.0);
 
   // Set Weights of sigma points
   weights_ = VectorXd(2 * n_aug_ + 1);
@@ -88,6 +89,9 @@ UKF::UKF() {
   {
     weights_(i) = 1.0 / (2.0 * (lambda_ + n_aug_) );
   }
+
+  // init timestamp
+  time_us_ = 0.0;
 
 
 }
@@ -148,7 +152,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     
     P_ << 1, 0, 0, 0, 0,
           0, 1, 0, 0, 0,
-          0, 0, 200, 0, 0,
+          0, 0, 1, 0, 0,
           0, 0, 0, 1, 0,
           0, 0, 0, 0, 1;
     
@@ -163,7 +167,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   {
     // compute the time elapsed between the current and previous measurements
     // dt - expressed in seconds
-    float dt = (meas_package.timestamp_ - time_us_) / 1000000.0;
+    double dt = (meas_package.timestamp_ - time_us_) / 1000000.0;
     time_us_ = meas_package.timestamp_;
 
     // Predict (based on motion model)
@@ -210,6 +214,7 @@ void UKF::Prediction(double delta_t) {
   x_aug(6) = 0;  // normal distributed yaw acceleration noise with mean = 0
 
   // create augmented covariance matrix
+  P_aug.fill(0.0);
   P_aug.topLeftCorner(n_x_, n_x_) = P_;
   P_aug(5,5) = std_a_ * std_a_;
   P_aug(6,6) = std_yawdd_ * std_yawdd_;
@@ -251,6 +256,8 @@ void UKF::Prediction(double delta_t) {
   double v_pred = 0.0;
   double yaw_pred = 0.0;
   double yawd_pred = 0.0;
+
+  Xsig_pred_.fill(0.0);
 
   for (int i = 0; i < 2 * n_aug_ + 1; ++i)
   {
@@ -399,9 +406,9 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
   {
     VectorXd z_diff = Zsig.col(i) - z_pred;
 
-    // angle normalization
-    while (z_diff(1) > M_PI)  z_diff(1)-=2.*M_PI;
-    while (z_diff(1) < -M_PI) z_diff(1)+=2.*M_PI;
+    // angle normalization -> for LiDAR not needed
+    //while (z_diff(1) > M_PI)  z_diff(1)-=2.*M_PI;
+    //while (z_diff(1) < -M_PI) z_diff(1)+=2.*M_PI;
 
     S = S + ( weights_(i) * z_diff * z_diff.transpose() );
   }
@@ -426,6 +433,8 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
      
 
   // calculate cross correlation matrix
+  Tc.fill(0.0);
+
 
   for (int i = 0; i < 2 * n_aug_ + 1; ++i) // loop over all sigma points
   {
@@ -433,9 +442,9 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
     VectorXd x_diff = Xsig_pred_.col(i) - x_;
     VectorXd z_diff = Zsig.col(i) - z_pred;
 
-    // angle normalization
-    while (z_diff(1) > M_PI)  z_diff(1)-=2.*M_PI;
-    while (z_diff(1) < -M_PI) z_diff(1)+=2.*M_PI;
+    // angle normalization -> for LiDAR not needed
+    //while (z_diff(1) > M_PI)  z_diff(1)-=2.*M_PI;
+    //while (z_diff(1) < -M_PI) z_diff(1)+=2.*M_PI;
 
     while (x_diff(3) > M_PI)  x_diff(3)-=2.*M_PI;
     while (x_diff(3) < -M_PI) x_diff(3)+=2.*M_PI;
@@ -457,9 +466,9 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
   // Calc z difference
   VectorXd z_diff = z - z_pred;
 
-  // angle normalization
-  while (z_diff(1) > M_PI)  z_diff(1)-=2.*M_PI;
-  while (z_diff(1) < -M_PI) z_diff(1)+=2.*M_PI;
+  // angle normalization -> for LiDAR not needed
+  //while (z_diff(1) > M_PI)  z_diff(1)-=2.*M_PI;
+  //while (z_diff(1) < -M_PI) z_diff(1)+=2.*M_PI;
 
 
   // update state mean
@@ -576,6 +585,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
 
 
   // calculate cross correlation matrix
+  Tc.fill(0.0);
 
   for (int i = 0; i < 2 * n_aug_ + 1; ++i) // loop over all sigma points
   {
